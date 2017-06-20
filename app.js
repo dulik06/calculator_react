@@ -2,10 +2,50 @@ import React from 'react'
 import ReactDOM from 'react-dom'
 import './styles.css'
 
+class AutoTextShrinking extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {scale: 1}
+  }
+
+  componentDidUpdate(){
+    const { scale } = this.state;
+
+    const node = this.node;
+    const parentNode = node.parentNode;
+
+    const availableWidth = parentNode.offsetWidth;
+    const actualWidth = node.offsetWidth;
+    const actualScale = availableWidth / actualWidth;
+
+    if (scale === actualScale)
+      return
+
+    if (actualScale < 1) {
+      this.setState({ scale: actualScale })
+    } else if (scale < 1) {
+      this.setState({ scale: 1 })
+    }
+
+
+
+  }
+  render(){
+    const {scale} = this.state;
+    return(
+      <div
+        className="auto-scaling-text"
+        style={{ transform: `scale(${scale},${scale})` }}
+        ref={node => this.node = node}
+      >{this.props.children}</div>
+    )
+  }
+}
+
 class Calculator extends React.Component {
   constructor(props) {
     super(props);
-    this.state = {displayValue: '0', waitingForValue: false, operator: null}
+    this.state = {displayValue: '0', waitingForValue: false, operator: null, value: null}
   }
 
   handleValue(digit) {
@@ -30,8 +70,30 @@ class Calculator extends React.Component {
     this.setState({displayValue: String(value/100)})
   }
 
-  handleOperation(operator){
-    this.setState({waitingForValue: true, operator: operator})
+  handleOperation(nextOperator){
+    const nextValue = parseFloat(this.state.displayValue);
+
+    const Operations ={
+      '/': (prevValue, nextValue) => prevValue / nextValue,
+      '*': (prevValue, nextValue) => prevValue * nextValue,
+      '+': (prevValue, nextValue) => prevValue + nextValue,
+      '-': (prevValue, nextValue) => prevValue - nextValue,
+      '=': (prevValue, nextValue) => nextValue
+    };
+
+    if(this.state.value == null) { //if i didnt have  a previous value
+      this.setState({value: nextValue})
+    } else if(this.state.operator) {
+      const currentValue = this.state.value || 0;
+      const computedValue = Operations[this.state.operator](currentValue, nextValue);
+
+      this.setState({
+        value: computedValue,
+        displayValue: String(computedValue)
+      })
+    }
+
+    this.setState({waitingForValue: true, operator: nextOperator})
   }
 
   handleDot(){
@@ -46,7 +108,9 @@ class Calculator extends React.Component {
   render() {
     return (
       <div className="calculator">
-        <div className="calculator-display">{this.state.displayValue}</div>
+        <div className="calculator-display">
+          <AutoTextShrinking>{this.state.displayValue}</AutoTextShrinking>
+        </div>
         <div className="calculator-keypad">
           <div className="input-keys">
             <div className="function-keys">
